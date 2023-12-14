@@ -41,13 +41,14 @@ PROFILE_ID = ""
 
 
 # helper function to make sure a dir is present
-def assure_dir(path):
+def assure_dir(path: str) -> None:
     if not os.path.isdir(path):
         os.mkdir(path)
 
+
 # Create Auth with Json
-def create_auth():
-    with open("auth.json") as f:
+def create_auth() -> dict:
+    with open("my_auth.json") as f:
         ljson = json.load(f)
     return {
         "Accept": "application/json, text/plain, */*",
@@ -65,16 +66,21 @@ def create_signed_headers(link, queryParams):
     global API_HEADER
     path = "/api2/v2" + link
     if (queryParams):
-        query = '&'.join('='.join((key, val)) for (key, val) in queryParams.items())
+        query = '&'.join('='.join((key, val))
+                         for (key, val) in queryParams.items())
         path = f"{path}?{query}"
     unixtime = str(int(dt.datetime.now().timestamp()))
-    msg = "\n".join([dynamic_rules["static_param"], unixtime, path, API_HEADER["user-id"]])
+    msg = "\n".join(
+        [dynamic_rules["static_param"], unixtime, path, API_HEADER["user-id"]])
     message = msg.encode("utf-8")
     hash_object = hashlib.sha1(message)
     sha_1_sign = hash_object.hexdigest()
     sha_1_b = sha_1_sign.encode("ascii")
-    checksum = sum([sha_1_b[number] for number in dynamic_rules["checksum_indexes"]]) + dynamic_rules["checksum_constant"]
-    API_HEADER["sign"] = dynamic_rules["format"].format(sha_1_sign, abs(checksum))
+    checksum = sum([
+        sha_1_b[number] for number in dynamic_rules["checksum_indexes"]
+    ]) + dynamic_rules["checksum_constant"]
+    API_HEADER["sign"] = dynamic_rules["format"].format(
+        sha_1_sign, abs(checksum))
     API_HEADER["time"] = unixtime
     return
 
@@ -83,9 +89,7 @@ def create_signed_headers(link, queryParams):
 # getdata and postdata should both be JSON
 def api_request(endpoint, getdata=None, postdata=None, getparams=None):
     if getparams == None:
-        getparams = {
-            "order": "publish_date_desc"
-        }
+        getparams = {"order": "publish_date_desc"}
     if getdata is not None:
         for i in getdata:
             getparams[i] = getdata[i]
@@ -101,7 +105,8 @@ def api_request(endpoint, getdata=None, postdata=None, getparams=None):
             posts_num = len(list_base)
 
             if posts_num >= POST_LIMIT:
-                beforePublishTime = list_base[POST_LIMIT - 1]['postedAtPrecise']
+                beforePublishTime = list_base[POST_LIMIT -
+                                              1]['postedAtPrecise']
                 getparams['beforePublishTime'] = beforePublishTime
 
                 while posts_num == POST_LIMIT:
@@ -118,7 +123,8 @@ def api_request(endpoint, getdata=None, postdata=None, getparams=None):
                         break
 
                     # Re-add again the updated beforePublishTime/postedAtPrecise params
-                    beforePublishTime = list_extend[posts_num - 1]['postedAtPrecise']
+                    beforePublishTime = list_extend[posts_num -
+                                                    1]['postedAtPrecise']
                     getparams['beforePublishTime'] = beforePublishTime
 
             return list_base
@@ -139,7 +145,7 @@ def api_request(endpoint, getdata=None, postdata=None, getparams=None):
 # /users/<profile>
 # get information about <profile>
 # <profile> = "customer" -> info about yourself
-def get_user_info(profile):
+def get_user_info(profile: str) -> dict:
     info = api_request("/users/" + profile).json()
     if "error" in info:
         print("\nERROR: " + info["error"]["message"])
@@ -147,9 +153,10 @@ def get_user_info(profile):
         exit()
     return info
 
+
 # to get subscribesCount for displaying all subs
 # info about yourself
-def user_me():
+def user_me() -> json:
     me = api_request("/users/me").json()
     if "error" in me:
         print("\nERROR: " + me["error"]["message"])
@@ -157,8 +164,9 @@ def user_me():
         exit()
     return me
 
+
 # get all subscriptions in json
-def get_subs():
+def get_subs() -> json:
     SUB_LIMIT = str(user_me()["subscribesCount"])
     params = {
         "type": "active",
@@ -172,15 +180,16 @@ def get_subs():
 # download public files like avatar and header
 new_files = 0
 
-def select_sub():
+
+def select_sub() -> None:
     # Get Subscriptions
     SUBS = get_subs()
     sub_dict.update({"0": "*** Download All Models ***"})
     ALL_LIST = []
-    for i in range(1, len(SUBS)+1):
-                ALL_LIST.append(i)
+    for i in range(1, len(SUBS) + 1):
+        ALL_LIST.append(i)
     for i in range(0, len(SUBS)):
-        sub_dict.update({i+1: SUBS[i]["username"]})
+        sub_dict.update({i + 1: SUBS[i]["username"]})
     if len(sub_dict) == 1:
         print('No models subbed')
         exit()
@@ -188,20 +197,23 @@ def select_sub():
     # Select Model
     if ARG1 == "all":
         return ALL_LIST
-    MODELS = str((input('\n'.join('{} | {}'.format(key, value) for key, value in sub_dict.items()) + "\nEnter number to download model\n")))
+    MODELS = str((input('\n'.join('{} | {}'.format(key, value)
+                                  for key, value in sub_dict.items()) +
+                        "\nEnter number to download model\n")))
     if MODELS == "0":
         return ALL_LIST
     else:
         return [x.strip() for x in MODELS.split(',')]
 
-def download_public_files():
+
+def download_public_files() -> None:
     public_files = ["avatar", "header"]
     for public_file in public_files:
         source = PROFILE_INFO[public_file]
         if source is None:
             continue
         id = get_id_from_path(source)
-        file_type = re.findall("\.\w+", source)[-1]
+        file_type = re.findall(".\w+", source)[-1]
         path = "/" + public_file + "/" + id + file_type
         if not os.path.isfile("profiles/" + PROFILE + path):
             print("Downloading " + public_file + "...")
@@ -215,11 +227,15 @@ def download_media(media, is_archived):
     id = str(media["id"])
     source = media["source"]["source"]
 
-    if (media["type"] != "photo" and media["type"] != "video" and media["type"] != "gif") or not media['canView']:
+    if (media["type"] != "photo" and media["type"] != "video"
+            and media["type"] != "gif") or not media['canView']:
         return
 
     # find extension
-    ext = re.findall('\.\w+\?', source)
+    try:
+        ext = re.findall('\.\w+\?', source)
+    except TypeError:
+        return
     if len(ext) == 0:
         return
     ext = ext[0][:-1]
@@ -229,7 +245,6 @@ def download_media(media, is_archived):
         type = "video"
     else:
         type = media["type"]
-
 
     if is_archived:
         path = "/archived/"
@@ -263,8 +278,11 @@ def calc_process_time(starttime, arraykey, arraylength):
     timeelapsed = time.time() - starttime
     timeest = (timeelapsed / arraykey) * (arraylength)
     finishtime = starttime + timeest
-    finishtime = dt.datetime.fromtimestamp(finishtime).strftime("%H:%M:%S")  # in time
-    lefttime = dt.timedelta(seconds=(int(timeest - timeelapsed)))  # get a nicer looking timestamp this way
+    finishtime = dt.datetime.fromtimestamp(finishtime).strftime(
+        "%H:%M:%S")  # in time
+    lefttime = dt.timedelta(
+        seconds=(int(timeest -
+                     timeelapsed)))  # get a nicer looking timestamp this way
     timeelapseddelta = dt.timedelta(seconds=(int(timeelapsed)))  # same here
     return (timeelapseddelta, lefttime, finishtime)
 
@@ -273,7 +291,8 @@ def calc_process_time(starttime, arraykey, arraylength):
 # returns the new count of downloaded posts
 def download_posts(cur_count, posts, is_archived):
     for k, post in enumerate(posts, start=1):
-        if "media" not in post or ("canViewMedia" in post and not post["canViewMedia"]):
+        if "media" not in post or ("canViewMedia" in post
+                                   and not post["canViewMedia"]):
             continue
 
         for media in post["media"]:
@@ -301,15 +320,19 @@ def get_all_videos(videos):
     while has_more_videos:
         has_more_videos = False
         len_vids = len(videos)
-        extra_video_posts = api_request("/users/" + PROFILE_ID + "/posts/videos",
-                                        getdata={"limit": str(POST_LIMIT), "order": "publish_date_desc",
-                                                 "beforePublishTime": videos[len_vids - 1]["postedAtPrecise"]}
-                                        )
+        extra_video_posts = api_request(
+            "/users/" + PROFILE_ID + "/posts/videos",
+            getdata={
+                "limit": str(POST_LIMIT),
+                "order": "publish_date_desc",
+                "beforePublishTime": videos[len_vids - 1]["postedAtPrecise"]
+            })
         videos.extend(extra_video_posts)
         if len(extra_video_posts) == 50:
             has_more_videos = True
 
     return videos
+
 
 def get_all_photos(images):
     len_imgs = len(images)
@@ -321,9 +344,15 @@ def get_all_photos(images):
         has_more_images = False
         len_imgs = len(images)
         extra_img_posts = api_request("/users/" + PROFILE_ID + "/posts/photos",
-                                        getdata={"limit": str(POST_LIMIT), "order": "publish_date_desc",
-                                                 "beforePublishTime": images[len_imgs - 1]["postedAtPrecise"]}
-                                        )
+                                      getdata={
+                                          "limit":
+                                          str(POST_LIMIT),
+                                          "order":
+                                          "publish_date_desc",
+                                          "beforePublishTime":
+                                          images[len_imgs -
+                                                 1]["postedAtPrecise"]
+                                      })
         images.extend(extra_img_posts)
         if len(extra_img_posts) == 50:
             has_more_images = True
@@ -349,7 +378,9 @@ if __name__ == "__main__":
 
     # Get the rules for the signed headers dynamically, as they may be fluid
     dynamic_rules = requests.get(
-        'https://raw.githubusercontent.com/DATAHOARDERS/dynamic-rules/main/onlyfans.json').json()
+        'https://raw.githubusercontent.com/DIGITALCRIMINALS/dynamic-rules/main/onlyfans.json'
+    ).json()
+
     # Create Header
     API_HEADER = create_auth()
 
@@ -363,7 +394,8 @@ if __name__ == "__main__":
         PROFILE_INFO = get_user_info(PROFILE)
         PROFILE_ID = str(PROFILE_INFO["id"])
 
-        print("\nonlyfans-dl is downloading content to profiles/" + PROFILE + "!\n")
+        print("\nonlyfans-dl is downloading content to profiles/" + PROFILE +
+              "!\n")
 
         if os.path.isdir("profiles/" + PROFILE):
             print("\nThe folder profiles/" + PROFILE + " exists.")
@@ -401,15 +433,20 @@ if __name__ == "__main__":
 
         # get all user posts
         print("Finding photos...", end=' ', flush=True)
-        photos = api_request("/users/" + PROFILE_ID + "/posts/photos", getdata={"limit": str(POST_LIMIT)})
+        photos = api_request("/users/" + PROFILE_ID + "/posts/photos",
+                             getdata={"limit": str(POST_LIMIT)})
         photo_posts = get_all_photos(photos)
         print("Found " + str(len(photo_posts)) + " photos.")
         print("Finding videos...", end=' ', flush=True)
-        videos = api_request("/users/" + PROFILE_ID + "/posts/videos", getdata={"limit": str(POST_LIMIT)})
-        video_posts = get_all_videos(videos)
+        # videos = api_request("/users/" + PROFILE_ID + "/posts/videos",
+        #                      getdata={"limit": str(POST_LIMIT)})
+        # video_posts = get_all_videos(videos)
+        video_posts = []
         print("Found " + str(len(video_posts)) + " videos.")
         print("Finding archived content...", end=' ', flush=True)
-        archived_posts = api_request("/users/" + PROFILE_ID + "/posts/archived", getdata={"limit": str(POST_LIMIT)})
+        archived_posts = api_request("/users/" + PROFILE_ID +
+                                     "/posts/archived",
+                                     getdata={"limit": str(POST_LIMIT)})
         print("Found " + str(len(archived_posts)) + " archived posts.")
         postcount = len(photo_posts) + len(video_posts)
         archived_postcount = len(archived_posts)

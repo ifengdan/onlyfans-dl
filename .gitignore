@@ -2,3 +2,4 @@ profiles*/
 .idea
 venv/
 auth.json
+my_auth.json
